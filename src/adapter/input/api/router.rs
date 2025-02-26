@@ -1,19 +1,13 @@
 use axum::{
-    routing::{get, post, put, delete},
+    routing::{delete, get, post, put},
     Router,
 };
+use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
-use tower_http::cors::{CorsLayer, Any};
 
 use super::handlers::{
-    AppState,
-    store_context,
-    get_context,
-    update_context,
-    delete_context,
-    list_contexts,
-    search_contexts,
-    retrieve_by_references,
+    delete_context, get_context, list_contexts, retrieve_by_references, search_contexts,
+    store_context, update_context, AppState,
 };
 
 /// Create the API router with all endpoints
@@ -32,11 +26,9 @@ pub fn create_router(state: AppState) -> Router {
         .route("/contexts/:id", get(get_context))
         .route("/contexts/:id", put(update_context))
         .route("/contexts/:id", delete(delete_context))
-        
         // Context search
         .route("/search", post(search_contexts))
         .route("/references", post(retrieve_by_references))
-        
         // Add middleware
         .layer(TraceLayer::new_for_http())
         .layer(cors)
