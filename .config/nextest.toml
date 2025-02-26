@@ -7,7 +7,6 @@ status-level = "pass"
 final-status-level = "fail"
 failure-output = "immediate"
 retries = 0
-threads = "num-cpus"
 
 [profile.ci]
 # Configuration for CI environments
@@ -16,16 +15,13 @@ retries = 2
 status-level = "all"
 final-status-level = "fail"
 failure-output = "immediate-final"
-threads = "num-cpus"
 
 [[profile.ci.overrides]]
-filter = "test_context_search_functionality"
-threads = 1
+filter = "test(test_context_search_functionality)"
 retries = 0
 
 # Profile for integration tests
 [profile.integration]
-threads = 1              # Run integration tests sequentially to avoid port conflicts
 retries = 1              # Retry once if a test fails (helps with flaky network tests)
 test-threads = 1         # Single thread per test
 status-level = "pass"
@@ -34,5 +30,4 @@ failure-output = "immediate-final"
 
 # Filter to only run integration tests
 [[profile.integration.overrides]]
-filter = "integration_tests::"
-threads = 1
+filter = "test(integration_tests::)"

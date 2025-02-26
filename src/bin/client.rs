@@ -1,11 +1,11 @@
-use std::collections::HashMap;
-use std::io::{self, Write};
-use std::time::Duration;
 use clap::{Parser, Subcommand};
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use std::collections::HashMap;
+use std::io::{self, Write};
+use std::time::Duration;
 use tokio::time::sleep;
+use uuid::Uuid;
 
 /// MCP client for interacting with the Model Context Protocol server
 #[derive(Parser, Debug)]
@@ -186,58 +186,86 @@ fn parse_tags(tags_str: Option<String>) -> Option<Vec<String>> {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse command line arguments
     let cli = Cli::parse();
-    
+
     // Create HTTP client
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(30))
         .build()?;
-    
+
     // Process command
     match cli.command {
-        Command::Store { content, source, content_type, tags } => {
-            store_context(&client, &cli.server, content, source, content_type, parse_tags(tags)).await?;
+        Command::Store {
+            content,
+            source,
+            content_type,
+            tags,
+        } => {
+            store_context(
+                &client,
+                &cli.server,
+                content,
+                source,
+                content_type,
+                parse_tags(tags),
+            )
+            .await?;
         }
-        
+
         Command::Get { id } => {
             get_context(&client, &cli.server, &id).await?;
         }
-        
+
         Command::List { tags, limit } => {
             list_contexts(&client, &cli.server, parse_tags(tags), limit).await?;
         }
-        
+
         Command::Search { query, tags, limit } => {
             search_contexts(&client, &cli.server, query, parse_tags(tags), limit).await?;
         }
-        
-        Command::Update { id, content, source, content_type, tags } => {
-            update_context(&client, &cli.server, &id, content, source, content_type, parse_tags(tags)).await?;
+
+        Command::Update {
+            id,
+            content,
+            source,
+            content_type,
+            tags,
+        } => {
+            update_context(
+                &client,
+                &cli.server,
+                &id,
+                content,
+                source,
+                content_type,
+                parse_tags(tags),
+            )
+            .await?;
         }
-        
+
         Command::Delete { id } => {
             delete_context(&client, &cli.server, &id).await?;
         }
-        
+
         Command::Interactive => {
             run_interactive_mode(&client, &cli.server).await?;
         }
     }
-    
+
     Ok(())
 }
 
 // API interaction functions
 
 async fn store_context(
-    client: &Client, 
-    server: &str, 
-    content: String, 
-    source: Option<String>, 
-    content_type: Option<String>, 
-    tags: Option<Vec<String>>
+    client: &Client,
+    server: &str,
+    content: String,
+    source: Option<String>,
+    content_type: Option<String>,
+    tags: Option<Vec<String>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Storing new context...");
-    
+
     let request = StoreContextRequest {
         content,
         source,
@@ -245,12 +273,13 @@ async fn store_context(
         tags,
         metadata: None,
     };
-    
-    let response = client.post(&format!("{}/contexts", server))
+
+    let response = client
+        .post(&format!("{}/contexts", server))
         .json(&request)
         .send()
         .await?;
-    
+
     if response.status().is_success() {
         let context: ContextResponse = response.json().await?;
         println!("Context stored successfully!");
@@ -261,21 +290,22 @@ async fn store_context(
     } else {
         handle_error_response(response).await?;
     }
-    
+
     Ok(())
 }
 
 async fn get_context(
-    client: &Client, 
-    server: &str, 
-    id: &str
+    client: &Client,
+    server: &str,
+    id: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Retrieving context with ID: {}...", id);
-    
-    let response = client.get(&format!("{}/contexts/{}", server, id))
+
+    let response = client
+        .get(&format!("{}/contexts/{}", server, id))
         .send()
         .await?;
-    
+
     if response.status().is_success() {
         let context: ContextResponse = response.json().await?;
         println!("Context retrieved successfully!");
@@ -288,34 +318,35 @@ async fn get_context(
     } else {
         handle_error_response(response).await?;
     }
-    
+
     Ok(())
 }
 
 async fn list_contexts(
-    client: &Client, 
-    server: &str, 
-    tags: Option<Vec<String>>, 
-    limit: usize
+    client: &Client,
+    server: &str,
+    tags: Option<Vec<String>>,
+    limit: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Listing contexts...");
-    
+
     // Create parameters
     let mut params = HashMap::new();
     if let Some(tags) = tags {
         params.insert("tags".to_string(), tags.join(","));
     }
     params.insert("limit".to_string(), limit.to_string());
-    
-    let response = client.get(&format!("{}/contexts", server))
+
+    let response = client
+        .get(&format!("{}/contexts", server))
         .json(&params)
         .send()
         .await?;
-    
+
     if response.status().is_success() {
         let contexts: Vec<ContextResponse> = response.json().await?;
         println!("Found {} contexts:", contexts.len());
-        
+
         for (i, context) in contexts.iter().enumerate() {
             println!("\n--- Context {} ---", i + 1);
             println!("ID: {}", context.id);
@@ -325,40 +356,45 @@ async fn list_contexts(
     } else {
         handle_error_response(response).await?;
     }
-    
+
     Ok(())
 }
 
 async fn search_contexts(
-    client: &Client, 
-    server: &str, 
-    query: String, 
-    tags: Option<Vec<String>>, 
-    limit: usize
+    client: &Client,
+    server: &str,
+    query: String,
+    tags: Option<Vec<String>>,
+    limit: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Searching for contexts with query: \"{}\"...", query);
-    
+
     let request = SearchRequest {
         query,
         tags,
         limit: Some(limit),
     };
-    
-    let response = client.post(&format!("{}/search", server))
+
+    let response = client
+        .post(&format!("{}/search", server))
         .json(&request)
         .send()
         .await?;
-    
+
     if response.status().is_success() {
         let search_result: SearchResponse = response.json().await?;
-        println!("Found {} matches (out of {} total):", search_result.matches.len(), search_result.total_matches);
-        
+        println!(
+            "Found {} matches (out of {} total):",
+            search_result.matches.len(),
+            search_result.total_matches
+        );
+
         for (i, match_item) in search_result.matches.iter().enumerate() {
             println!("\n--- Match {} (score: {:.2}) ---", i + 1, match_item.score);
             println!("ID: {}", match_item.context.id);
             println!("Content: {}", match_item.context.content);
             println!("Tags: {:?}", match_item.context.tags);
-            
+
             if let Some(chunks) = &match_item.chunks {
                 println!("Matching chunks: {}", chunks.len());
                 for chunk in chunks.iter().take(2) {
@@ -372,21 +408,21 @@ async fn search_contexts(
     } else {
         handle_error_response(response).await?;
     }
-    
+
     Ok(())
 }
 
 async fn update_context(
-    client: &Client, 
-    server: &str, 
+    client: &Client,
+    server: &str,
     id: &str,
-    content: String, 
-    source: Option<String>, 
-    content_type: Option<String>, 
-    tags: Option<Vec<String>>
+    content: String,
+    source: Option<String>,
+    content_type: Option<String>,
+    tags: Option<Vec<String>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Updating context with ID: {}...", id);
-    
+
     let request = UpdateContextRequest {
         content,
         source,
@@ -394,12 +430,13 @@ async fn update_context(
         tags,
         metadata: None,
     };
-    
-    let response = client.put(&format!("{}/contexts/{}", server, id))
+
+    let response = client
+        .put(&format!("{}/contexts/{}", server, id))
         .json(&request)
         .send()
         .await?;
-    
+
     if response.status().is_success() {
         let context: ContextResponse = response.json().await?;
         println!("Context updated successfully!");
@@ -409,33 +446,36 @@ async fn update_context(
     } else {
         handle_error_response(response).await?;
     }
-    
+
     Ok(())
 }
 
 async fn delete_context(
-    client: &Client, 
-    server: &str, 
-    id: &str
+    client: &Client,
+    server: &str,
+    id: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Deleting context with ID: {}...", id);
-    
-    let response = client.delete(&format!("{}/contexts/{}", server, id))
+
+    let response = client
+        .delete(&format!("{}/contexts/{}", server, id))
         .send()
         .await?;
-    
+
     if response.status().is_success() {
         println!("Context deleted successfully!");
     } else {
         handle_error_response(response).await?;
     }
-    
+
     Ok(())
 }
 
-async fn handle_error_response(response: reqwest::Response) -> Result<(), Box<dyn std::error::Error>> {
+async fn handle_error_response(
+    response: reqwest::Response,
+) -> Result<(), Box<dyn std::error::Error>> {
     let status = response.status();
-    
+
     match response.json::<ErrorResponse>().await {
         Ok(error) => {
             eprintln!("Error ({}): {} ({})", status, error.message, error.code);
@@ -444,27 +484,35 @@ async fn handle_error_response(response: reqwest::Response) -> Result<(), Box<dy
             eprintln!("Error ({}): Failed to parse error response", status);
         }
     }
-    
+
     Ok(())
 }
 
 // Interactive mode
-async fn run_interactive_mode(client: &Client, server: &str) -> Result<(), Box<dyn std::error::Error>> {
+async fn run_interactive_mode(
+    client: &Client,
+    server: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     println!("=== MCP Interactive Client ===");
     println!("Server: {}", server);
     println!();
-    
+
     // Try connecting to the server
     println!("Checking server connection...");
-    match client.get(&format!("{}/contexts", server))
+    match client
+        .get(&format!("{}/contexts", server))
         .timeout(Duration::from_secs(5))
         .send()
-        .await {
+        .await
+    {
         Ok(response) if response.status().is_success() => {
             println!("Server connection successful!");
         }
         Ok(response) => {
-            println!("Connected to server but received status code: {}", response.status());
+            println!(
+                "Connected to server but received status code: {}",
+                response.status()
+            );
         }
         Err(e) => {
             println!("Failed to connect to server: {}", e);
@@ -472,7 +520,7 @@ async fn run_interactive_mode(client: &Client, server: &str) -> Result<(), Box<d
             return Ok(());
         }
     }
-    
+
     println!();
     println!("Available commands:");
     println!("  1. Store a new context");
@@ -483,15 +531,15 @@ async fn run_interactive_mode(client: &Client, server: &str) -> Result<(), Box<d
     println!("  6. Delete a context");
     println!("  q. Quit");
     println!();
-    
+
     loop {
         print!("Enter command (1-6, q): ");
         io::stdout().flush()?;
-        
+
         let mut input = String::new();
         io::stdin().read_line(&mut input)?;
         let input = input.trim();
-        
+
         match input {
             "1" => {
                 // Store context
@@ -499,145 +547,194 @@ async fn run_interactive_mode(client: &Client, server: &str) -> Result<(), Box<d
                 io::stdout().flush()?;
                 let mut content = String::new();
                 io::stdin().read_line(&mut content)?;
-                
+
                 print!("Enter source (optional): ");
                 io::stdout().flush()?;
                 let mut source = String::new();
                 io::stdin().read_line(&mut source)?;
-                let source = if source.trim().is_empty() { None } else { Some(source.trim().to_string()) };
-                
+                let source = if source.trim().is_empty() {
+                    None
+                } else {
+                    Some(source.trim().to_string())
+                };
+
                 print!("Enter content type (optional): ");
                 io::stdout().flush()?;
                 let mut content_type = String::new();
                 io::stdin().read_line(&mut content_type)?;
-                let content_type = if content_type.trim().is_empty() { None } else { Some(content_type.trim().to_string()) };
-                
+                let content_type = if content_type.trim().is_empty() {
+                    None
+                } else {
+                    Some(content_type.trim().to_string())
+                };
+
                 print!("Enter tags (comma-separated, optional): ");
                 io::stdout().flush()?;
                 let mut tags_str = String::new();
                 io::stdin().read_line(&mut tags_str)?;
-                let tags = parse_tags(if tags_str.trim().is_empty() { None } else { Some(tags_str.trim().to_string()) });
-                
-                store_context(client, server, content.trim().to_string(), source, content_type, tags).await?;
+                let tags = parse_tags(if tags_str.trim().is_empty() {
+                    None
+                } else {
+                    Some(tags_str.trim().to_string())
+                });
+
+                store_context(
+                    client,
+                    server,
+                    content.trim().to_string(),
+                    source,
+                    content_type,
+                    tags,
+                )
+                .await?;
             }
-            
+
             "2" => {
                 // Get context
                 print!("Enter context ID: ");
                 io::stdout().flush()?;
                 let mut id = String::new();
                 io::stdin().read_line(&mut id)?;
-                
+
                 get_context(client, server, id.trim()).await?;
             }
-            
+
             "3" => {
                 // List contexts
                 print!("Enter tags to filter (comma-separated, optional): ");
                 io::stdout().flush()?;
                 let mut tags_str = String::new();
                 io::stdin().read_line(&mut tags_str)?;
-                let tags = parse_tags(if tags_str.trim().is_empty() { None } else { Some(tags_str.trim().to_string()) });
-                
+                let tags = parse_tags(if tags_str.trim().is_empty() {
+                    None
+                } else {
+                    Some(tags_str.trim().to_string())
+                });
+
                 print!("Enter limit (default 10): ");
                 io::stdout().flush()?;
                 let mut limit_str = String::new();
                 io::stdin().read_line(&mut limit_str)?;
                 let limit = limit_str.trim().parse::<usize>().unwrap_or(10);
-                
+
                 list_contexts(client, server, tags, limit).await?;
             }
-            
+
             "4" => {
                 // Search contexts
                 print!("Enter search query: ");
                 io::stdout().flush()?;
                 let mut query = String::new();
                 io::stdin().read_line(&mut query)?;
-                
+
                 print!("Enter tags to filter (comma-separated, optional): ");
                 io::stdout().flush()?;
                 let mut tags_str = String::new();
                 io::stdin().read_line(&mut tags_str)?;
-                let tags = parse_tags(if tags_str.trim().is_empty() { None } else { Some(tags_str.trim().to_string()) });
-                
+                let tags = parse_tags(if tags_str.trim().is_empty() {
+                    None
+                } else {
+                    Some(tags_str.trim().to_string())
+                });
+
                 print!("Enter limit (default 5): ");
                 io::stdout().flush()?;
                 let mut limit_str = String::new();
                 io::stdin().read_line(&mut limit_str)?;
                 let limit = limit_str.trim().parse::<usize>().unwrap_or(5);
-                
+
                 search_contexts(client, server, query.trim().to_string(), tags, limit).await?;
             }
-            
+
             "5" => {
                 // Update context
                 print!("Enter context ID to update: ");
                 io::stdout().flush()?;
                 let mut id = String::new();
                 io::stdin().read_line(&mut id)?;
-                
+
                 print!("Enter new content: ");
                 io::stdout().flush()?;
                 let mut content = String::new();
                 io::stdin().read_line(&mut content)?;
-                
+
                 print!("Enter new source (optional): ");
                 io::stdout().flush()?;
                 let mut source = String::new();
                 io::stdin().read_line(&mut source)?;
-                let source = if source.trim().is_empty() { None } else { Some(source.trim().to_string()) };
-                
+                let source = if source.trim().is_empty() {
+                    None
+                } else {
+                    Some(source.trim().to_string())
+                };
+
                 print!("Enter new content type (optional): ");
                 io::stdout().flush()?;
                 let mut content_type = String::new();
                 io::stdin().read_line(&mut content_type)?;
-                let content_type = if content_type.trim().is_empty() { None } else { Some(content_type.trim().to_string()) };
-                
+                let content_type = if content_type.trim().is_empty() {
+                    None
+                } else {
+                    Some(content_type.trim().to_string())
+                };
+
                 print!("Enter new tags (comma-separated, optional): ");
                 io::stdout().flush()?;
                 let mut tags_str = String::new();
                 io::stdin().read_line(&mut tags_str)?;
-                let tags = parse_tags(if tags_str.trim().is_empty() { None } else { Some(tags_str.trim().to_string()) });
-                
-                update_context(client, server, id.trim(), content.trim().to_string(), source, content_type, tags).await?;
+                let tags = parse_tags(if tags_str.trim().is_empty() {
+                    None
+                } else {
+                    Some(tags_str.trim().to_string())
+                });
+
+                update_context(
+                    client,
+                    server,
+                    id.trim(),
+                    content.trim().to_string(),
+                    source,
+                    content_type,
+                    tags,
+                )
+                .await?;
             }
-            
+
             "6" => {
                 // Delete context
                 print!("Enter context ID to delete: ");
                 io::stdout().flush()?;
                 let mut id = String::new();
                 io::stdin().read_line(&mut id)?;
-                
+
                 print!("Are you sure you want to delete this context? (y/n): ");
                 io::stdout().flush()?;
                 let mut confirm = String::new();
                 io::stdin().read_line(&mut confirm)?;
-                
+
                 if confirm.trim().to_lowercase() == "y" {
                     delete_context(client, server, id.trim()).await?;
                 } else {
                     println!("Delete operation cancelled.");
                 }
             }
-            
+
             "q" | "quit" | "exit" => {
                 println!("Goodbye!");
                 break;
             }
-            
+
             _ => {
                 println!("Invalid command. Please enter a number from 1-6 or 'q' to quit.");
             }
         }
-        
+
         println!();
         println!("Press Enter to continue...");
         let mut pause = String::new();
         io::stdin().read_line(&mut pause)?;
         println!();
     }
-    
+
     Ok(())
 }
